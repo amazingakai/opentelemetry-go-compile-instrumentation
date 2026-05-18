@@ -4,6 +4,8 @@
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,6 +31,11 @@ const (
 func GetMatchedRuleFile() string {
 	const matchedRuleFile = "matched.json"
 	return GetBuildTemp(matchedRuleFile)
+}
+
+func GetBackupStateFile() string {
+	const backupStateFile = "backup.json"
+	return GetBuildTemp(backupStateFile)
 }
 
 // GetAddedImportsFileForProcess returns the per-process import tracking file.
@@ -63,24 +70,65 @@ func GetBuildTemp(name string) string {
 	return filepath.Join(GetOtelcWorkDir(), BuildTempDir, name)
 }
 
-func copyBackupFiles(names []string, src, dst string) error {
+func backupFilePath(path string) string {
+	p := filepath.Clean(path)
+	sum := sha256.Sum256([]byte(p))
+	return hex.EncodeToString(sum[:])
+}
+
+// BackupFiles copies the specified files to the backup directory and records their paths in a state file for later restoration.
+func BackupFiles(files ...string) error {
 	var err error
-	for _, name := range names {
-		srcFile := filepath.Join(src, name)
-		dstFile := filepath.Join(dst, name)
-		err = ex.Join(err, CopyFile(srcFile, dstFile))
+	backupDir := GetBuildTemp("backup")
+	for _, src := range files {
+		dst := filepath.Join(backupDir, backupFilePath(src))
+		err = ex.Join(err, CopyFile(src, dst))
 	}
+	if err != nil {
+		return ex.Wrapf(err, "failed to copy backup files")
+	}
+
+	f := GetBackupStateFile()
+	file, createErr := os.Create(f)
+	if createErr != nil {
+		return ex.Wrapf(createErr, "failed to create file %s", f)
+	}
+	defer file.Close()
+
+	bs, marshalErr := json.Marshal(files)
+	if marshalErr != nil {
+		return ex.Wrapf(marshalErr, "failed to marshal backup state to JSON")
+	}
+
+	if _, writeErr := file.Write(bs); writeErr != nil {
+		return ex.Wrapf(writeErr, "failed to write JSON to file %s", f)
+	}
+
+	return nil
+}
+
+// RestoreBackupFiles reads the backup state file to get the list of original file paths, then copies the backed-up files from the backup directory back to their original locations.
+func RestoreBackupFiles() error {
+	f := GetBackupStateFile()
+	file, err := os.Open(f)
+	if err != nil {
+		return ex.Wrapf(err, "failed to open backup state file %s", f)
+	}
+	defer file.Close()
+
+	var files []string
+	decoder := json.NewDecoder(file)
+	if err = decoder.Decode(&files); err != nil {
+		return ex.Wrapf(err, "failed to decode backup state JSON from file %s", f)
+	}
+
+	backupDir := GetBuildTemp("backup")
+	for _, src := range files {
+		dst := filepath.Join(backupDir, backupFilePath(src))
+		err = ex.Join(err, CopyFile(dst, src))
+	}
+
 	return err
-}
-
-// BackupFile backups the source file to $BUILD_TEMP/backup/name.
-func BackupFile(names []string) error {
-	return copyBackupFiles(names, ".", GetBuildTemp("backup"))
-}
-
-// RestoreFile restores the source file from $BUILD_TEMP/backup/name.
-func RestoreFile(names []string) error {
-	return copyBackupFiles(names, GetBuildTemp("backup"), ".")
 }
 
 // GetBuildFlags returns the build flags from OTELC_BUILD_FLAGS environment variable.

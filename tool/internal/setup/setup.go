@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -138,6 +139,38 @@ func getPackageDir(pkg *packages.Package) string {
 	return ""
 }
 
+func getBackupFiles(ctx context.Context, moduleDirs map[string]bool) ([]string, error) {
+	var files []string
+
+	// Find all go.mod and go.sum files
+	for moduleDir := range moduleDirs {
+		goModFile := filepath.Join(moduleDir, "go.mod")
+		if util.PathExists(goModFile) {
+			files = append(files, goModFile)
+		}
+		goSumFile := filepath.Join(moduleDir, "go.sum")
+		if util.PathExists(goSumFile) {
+			files = append(files, goSumFile)
+		}
+	}
+
+	// Find go.work.sum if go.work exists
+	goWorkCmd := exec.CommandContext(ctx, "go", "env", "GOWORK")
+	goWorkOutput, err := goWorkCmd.Output()
+	if err != nil {
+		return nil, ex.Wrapf(err, "failed to get GOWORK environment variable")
+	}
+	goWorkPath := strings.TrimSpace(string(goWorkOutput))
+	if goWorkPath != "" {
+		goWorkSumPath := filepath.Join(filepath.Dir(goWorkPath), "go.work.sum")
+		if util.PathExists(goWorkSumPath) {
+			files = append(files, goWorkSumPath)
+		}
+	}
+
+	return files, nil
+}
+
 // Setup prepares the environment for further instrumentation.
 func Setup(ctx context.Context, cmd *cli.Command) error {
 	// The args are "go build ..."
@@ -149,14 +182,6 @@ func Setup(ctx context.Context, cmd *cli.Command) error {
 	if isSetup() {
 		logger.InfoContext(ctx, "Setup has already been completed, skipping setup.")
 		return nil
-	}
-
-	// Back up go.mod / go.sum / go.work / go.work.sum before modifying them.
-	// Cleanup() restores from this backup, so the backup must exist before any
-	// modification happens — including when otelc setup is run standalone.
-	backupFiles := []string{"go.mod", "go.sum", "go.work", "go.work.sum"}
-	if err := util.BackupFile(backupFiles); err != nil {
-		logger.DebugContext(ctx, "failed to back up files", "error", err)
 	}
 
 	sp := &SetupPhase{
@@ -206,6 +231,15 @@ func Setup(ctx context.Context, cmd *cli.Command) error {
 			return ex.Wrapf(err, "adding deps for package at %s", pkgDir)
 		}
 		moduleDirs[moduleDir] = true
+	}
+
+	// Backup go.mod, go.sum and go.work.sum files before modifying them
+	filesToBackup, bakErr := getBackupFiles(ctx, moduleDirs)
+	if bakErr != nil {
+		return ex.Wrapf(bakErr, "determining files to backup")
+	}
+	if err = util.BackupFiles(filesToBackup...); err != nil {
+		return ex.Wrapf(err, "backing up files: %v", filesToBackup)
 	}
 
 	// Sync new dependencies to go.mod or vendor/modules.txt
@@ -387,22 +421,9 @@ func GoBuild(ctx context.Context, cmd *cli.Command) error {
 	instrument.CleanupImportTrackingFiles()
 
 	defer func() {
-		// Remove otelc.runtime.go from each instrumented package directory.
-		pkgs, pkgErr := getBuildPackages(ctx, cmd.Args().Slice())
-		if pkgErr != nil {
-			logger.DebugContext(ctx, "failed to get build packages", "error", pkgErr)
-		}
-		for _, pkg := range pkgs {
-			path := filepath.Join(pkg.Dir, OtelcRuntimeFile)
-			if removeErr := os.RemoveAll(path); removeErr != nil {
-				logger.DebugContext(ctx, "failed to remove generated file from package",
-					"file", path, "error", removeErr)
-			}
-		}
-
 		// Restore backed-up go.mod/go.sum but keep .otelc-build/ for debugging.
 		// Users can run `otelc cleanup` to remove it explicitly.
-		if cleanErr := Cleanup(ctx, false); cleanErr != nil {
+		if cleanErr := Cleanup(ctx, cmd.Args().Slice(), false); cleanErr != nil {
 			logger.DebugContext(ctx, "cleanup failed", "error", cleanErr)
 		}
 	}()
