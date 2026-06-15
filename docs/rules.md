@@ -12,6 +12,7 @@
   - [Modifier names → rule types](#modifier-names--rule-types)
   - [Special `target` values](#special-target-values)
   - [Valid and invalid shapes](#valid-and-invalid-shapes)
+- [Loading Rules](#loading-rules)
 - [Rule Types](#rule-types)
   - [1. Function Hook Rule](#1-function-hook-rule)
   - [2. Struct Field Injection Rule](#2-struct-field-injection-rule)
@@ -29,6 +30,8 @@
 This document explains the different types of instrumentation rules used by the Go compile-time instrumentation tool. These rules, defined in YAML files, allow for the injection of code into target Go packages.
 
 The schema is the 2-tier `target` / `version` + `where` / `do` surface decided in [ADR-0003](adr/0003-structured-rule-schema.md). `where` carries non-package selectors, `do` carries modifiers, and the modifier name in `do` declares the rule type.
+
+Rules are typically distributed as `*.otelc.yml` files within instrumentation packages. Instrumentation packages may also contain an `otel.instrumentation.go` (or `otelc.tool.go`) file that composes other instrumentation packages through blank imports.
 
 ## Schema Reference
 
@@ -305,6 +308,18 @@ invalid_where_file_shape:
 
 ---
 
+## Loading Rules
+
+Rules are normally distributed through instrumentation packages and enabled using `otel.instrumentation.go`, `otelc.tool.go`, or `otelc pin`.
+
+For development and debugging, rules may also be loaded directly using the `--rules` flag.
+
+Unlike instrumentation packages, rules loaded through `--rules` do not automatically add any packages referenced by rule fields (for example func rule's `path`) to the application's module dependencies. Any packages referenced by the loaded rules must already be available in the module graph.
+
+The `--rules` flag is therefore primarily intended for experimentation, development, and debugging rather than distributing production instrumentations.
+
+---
+
 ## Rule Types
 
 There are several types of rules, each designed for a specific kind of code modification. Rule type is determined by the modifier name inside `do`.
@@ -329,6 +344,8 @@ This is the most common rule type. It injects function calls at the beginning (`
 - `before` (string, optional): The name of the function to be called at the entry of the target function.
 - `after` (string, optional): The name of the function to be called just before the target function returns.
 - `path` (string, required): The import path for the package containing the `before` and `after` hook functions.
+
+  The path must belong to the same Go module as the rule file that declares the rule, or to a package nested within that module. Hook implementations cannot be loaded from arbitrary external modules. To reuse hooks from another module, distribute them through an instrumentation package and import that package via `otel.instrumentation.go` or `otelc.tool.go`.
 
 **Example:**
 
