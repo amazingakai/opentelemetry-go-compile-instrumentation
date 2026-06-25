@@ -49,11 +49,14 @@ type FuncSignature struct {
 type InstFuncRule struct {
 	InstBaseRule `yaml:",inline"`
 
-	Func   string `json:"func"   yaml:"func"`   // The name of the target func to be instrumented
-	Recv   string `json:"recv"   yaml:"recv"`   // The name of the receiver type
-	Before string `json:"before" yaml:"before"` // The function we inject at the target function entry
-	After  string `json:"after"  yaml:"after"`  // The function we inject at the target function exit
-	Path   string `json:"path"   yaml:"path"`   // The module path where hook code is located
+	Func       string `json:"func"   yaml:"func"`   // The name of the target func to be instrumented
+	Recv       string `json:"recv"   yaml:"recv"`   // The name of the receiver type
+	Before     string `json:"before" yaml:"before"` // The function we inject at the target function entry
+	After      string `json:"after"  yaml:"after"`  // The function we inject at the target function exit
+	Path       string `json:"path"   yaml:"path"`   // The import path where hook code is located
+	ModulePath string `json:"-"      yaml:"module"` // The module path where hook code is located
+
+	ResolvedPath string `json:"resolved_path" yaml:"-"` // The path of the file resolved from the import path
 
 	// Optional signature sub-filters (all non-empty filters must match; combined
 	// with AND logic so any combination is allowed).
@@ -72,6 +75,9 @@ func NewInstFuncRule(data []byte, name string) (*InstFuncRule, error) {
 	}
 	if r.Name == "" {
 		r.Name = name
+	}
+	if r.ModulePath == "" {
+		r.ModulePath = r.Path
 	}
 	if err := r.validate(); err != nil {
 		return nil, ex.Wrapf(err, "invalid func rule %q", name)
