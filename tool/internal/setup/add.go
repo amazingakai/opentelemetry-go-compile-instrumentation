@@ -30,7 +30,7 @@ var requiredImports = map[string]string{
 func genImportDecl(funcRules []*rule.InstFuncRule, fileRules []*rule.InstFileRule) []dst.Decl {
 	var imports map[string]string
 	if len(funcRules) > 0 {
-		imports = maps.Clone(requiredImports) // clone required imports to avoid mutating the global constant map
+		imports = maps.Clone(requiredImports) // clone required imports to avoid mutating the global map
 		for _, m := range funcRules {
 			imports[m.Path] = ast.IdentIgnore
 		}

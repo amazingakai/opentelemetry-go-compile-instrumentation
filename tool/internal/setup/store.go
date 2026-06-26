@@ -44,7 +44,7 @@ func resolveRulePaths(ctx context.Context, matched []*rule.InstRuleSet, moduleDi
 			return pkgs[0].Dir, nil
 		}
 
-		return "", ex.Newf("failed to resolve module path %s", goPath)
+		return "", ex.Newf("failed to resolve import path %s", goPath)
 	}
 
 	for _, ruleset := range matched {

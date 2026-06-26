@@ -26,7 +26,7 @@ func (ip *InstrumentPhase) applyFileRule(ctx context.Context, rule *rule.InstFil
 	// List all files in the rule module path
 	files, err := util.ListFiles(rule.ResolvedPath)
 	if err != nil {
-		return ex.Wrapf(err, "listing files for rule %s at path %s", rule.Name, rule.Path)
+		return ex.Wrapf(err, "listing files for rule %s in dir %s (import path %s)", rule.Name, rule.ResolvedPath, rule.Path)
 	}
 
 	// Find the new file we want to introduce
