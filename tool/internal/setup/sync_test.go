@@ -192,11 +192,11 @@ go 1.21
 	pkgDir := filepath.Join(buildTempDir, unzippedPkgDir)
 	runtimeDir := filepath.Join(pkgDir, "runtime")
 	instDir := filepath.Join(buildTempDir, unzippedInstDir)
-	instNetHttpDir := filepath.Join(instDir, "net", "http", "client")
+	instNetHTTPDir := filepath.Join(instDir, "net", "http", "client")
 
 	// Create expected directory structure.
 	require.NoError(t, os.MkdirAll(runtimeDir, 0o755))
-	require.NoError(t, os.MkdirAll(instNetHttpDir, 0o755))
+	require.NoError(t, os.MkdirAll(instNetHTTPDir, 0o755))
 
 	require.NoError(t, os.WriteFile(
 		filepath.Join(pkgDir, "go.mod"),
@@ -209,7 +209,7 @@ go 1.21
 		0o644,
 	))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(instNetHttpDir, "go.mod"),
+		filepath.Join(instNetHTTPDir, "go.mod"),
 		[]byte("module "+util.OtelcInstRoot+"/net/http/client\ngo 1.21\n"),
 		0o644,
 	))
@@ -250,7 +250,7 @@ go 1.21
 		"replace "+util.OtelcInstRoot+" => "+instDir)
 
 	assert.Contains(t, got,
-		"replace "+util.OtelcInstRoot+"/net/http/client => "+instNetHttpDir)
+		"replace "+util.OtelcInstRoot+"/net/http/client => "+instNetHTTPDir)
 }
 
 func warnCapture() (*SetupPhase, *bytes.Buffer) {
