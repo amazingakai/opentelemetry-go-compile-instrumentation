@@ -76,5 +76,5 @@ func TestResolveRulePaths_NotFound(t *testing.T) {
 	)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "failed to resolve module path")
+	require.ErrorContains(t, err, "failed to resolve import path")
 }
