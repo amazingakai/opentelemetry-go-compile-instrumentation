@@ -92,6 +92,9 @@ func (r *InstFuncRule) validate() error {
 	if strings.TrimSpace(r.Before) == "" && strings.TrimSpace(r.After) == "" {
 		return ex.Newf("before or after must be set")
 	}
+	if r.Path != r.ModulePath && !strings.HasPrefix(r.Path, r.ModulePath+"/") {
+		return ex.Newf("import path %q is not part of module path %q", r.Path, r.ModulePath)
+	}
 	return nil
 }
 

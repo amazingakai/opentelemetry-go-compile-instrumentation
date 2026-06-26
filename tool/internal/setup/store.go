@@ -28,23 +28,34 @@ func resolveRulePaths(ctx context.Context, matched []*rule.InstRuleSet, moduleDi
 			return dir, nil
 		}
 
+		var lastErr error
 		for moduleDir := range moduleDirs {
 			pkgs, err := packages.Load(&packages.Config{
 				Mode:    packages.NeedFiles,
 				Context: ctx,
 				Dir:     moduleDir,
 			}, goPath)
-			if err != nil || len(pkgs) == 0 || len(pkgs[0].Errors) > 0 {
+			if err != nil {
+				lastErr = err
 				continue
 			}
-
-			util.Assert(len(pkgs) == 1, "expected exactly one package")
+			if len(pkgs) == 0 {
+				lastErr = ex.New("no packages found")
+				continue
+			}
+			if len(pkgs[0].Errors) > 0 {
+				lastErr = pkgs[0].Errors[0]
+				continue
+			}
+			if len(pkgs) > 1 {
+				return "", ex.Newf("import path %q resolved to %d packages", goPath, len(pkgs))
+			}
 
 			cache[goPath] = pkgs[0].Dir
 			return pkgs[0].Dir, nil
 		}
 
-		return "", ex.Newf("failed to resolve import path %s", goPath)
+		return "", ex.Wrapf(lastErr, "failed to resolve import path %q", goPath)
 	}
 
 	for _, ruleset := range matched {

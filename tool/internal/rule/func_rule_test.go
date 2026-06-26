@@ -131,6 +131,22 @@ param: string
 			yaml:    `func: MyFunc\ntarget: example.com/pkg`,
 			wantErr: true,
 		},
+		{
+			name: "module defaults to path",
+			yaml: `
+func: MyFunc
+target: example.com/pkg
+before: MyBefore
+path: github.com/example/instrumentation/net/http/client
+`,
+			check: func(t *testing.T, r *InstFuncRule) {
+				assert.Equal(t,
+					"github.com/example/instrumentation/net/http/client",
+					r.Path,
+				)
+				assert.Equal(t, r.Path, r.ModulePath)
+			},
+		},
 	}
 
 	for _, tt := range tests {

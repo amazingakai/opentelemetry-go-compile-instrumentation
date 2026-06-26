@@ -169,7 +169,7 @@ func TestSyncDeps_NoRules(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSyncDeps_WithRules(t *testing.T) {
+func TestSyncDeps_WithEmbeddedInstrumentationRule(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a go.mod in temp directory
@@ -187,13 +187,32 @@ go 1.21
 	// Set environment variable to override build temp dir
 	t.Setenv(util.EnvOtelcWorkDir, tempDir)
 
-	// Create the pkg directory structure
-	pkgDir := filepath.Join(tempDir, "pkg")
-	err = os.MkdirAll(pkgDir, 0o755)
-	require.NoError(t, err)
-	pkgGoMod := filepath.Join(pkgDir, "go.mod")
-	err = os.WriteFile(pkgGoMod, []byte("module "+util.OtelcPkgRoot+"\ngo 1.21\n"), 0o644)
-	require.NoError(t, err)
+	buildTempDir := util.GetBuildTempDir()
+
+	pkgDir := filepath.Join(buildTempDir, unzippedPkgDir)
+	runtimeDir := filepath.Join(pkgDir, "runtime")
+	instDir := filepath.Join(buildTempDir, unzippedInstDir)
+	instNetHttpDir := filepath.Join(instDir, "net", "http", "client")
+
+	// Create expected directory structure.
+	require.NoError(t, os.MkdirAll(runtimeDir, 0o755))
+	require.NoError(t, os.MkdirAll(instNetHttpDir, 0o755))
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(pkgDir, "go.mod"),
+		[]byte("module "+util.OtelcPkgRoot+"\ngo 1.21\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(instDir, "go.mod"),
+		[]byte("module "+util.OtelcInstRoot+"\ngo 1.21\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(instNetHttpDir, "go.mod"),
+		[]byte("module "+util.OtelcInstRoot+"/net/http/client\ngo 1.21\n"),
+		0o644,
+	))
 
 	sp := &SetupPhase{
 		logger: slog.Default(),
@@ -204,7 +223,8 @@ go 1.21
 		InstBaseRule: rule.InstBaseRule{
 			Name: "test-rule",
 		},
-		Path: util.OtelcRoot + "/instrumentation/net/http/client",
+		Path:       util.OtelcInstRoot + "/net/http/client",
+		ModulePath: util.OtelcInstRoot + "/net/http/client",
 	}
 
 	ruleSet := &rule.InstRuleSet{
@@ -213,19 +233,24 @@ go 1.21
 		},
 	}
 
-	err = sp.syncDeps(t.Context(), []*rule.InstRuleSet{ruleSet}, tempDir)
-	// This will likely fail due to missing instrumentation directories,
-	// but we're testing that it attempts to add replaces
-	if err != nil {
-		t.Logf("syncDeps failed (expected in test): %v", err)
-	}
+	require.NoError(t, sp.syncDeps(t.Context(), []*rule.InstRuleSet{ruleSet}, tempDir))
 
 	// Read back the go.mod and check if replaces were added
 	content, err := os.ReadFile(gomodPath)
 	require.NoError(t, err)
+	got := string(content)
 
-	// At minimum, the pkg replace should be added
-	assert.Contains(t, string(content), "replace")
+	assert.Contains(t, got,
+		"replace "+util.OtelcPkgRoot+" => "+pkgDir)
+
+	assert.Contains(t, got,
+		"replace "+util.OtelcPkgRoot+"/runtime => "+runtimeDir)
+
+	assert.Contains(t, got,
+		"replace "+util.OtelcInstRoot+" => "+instDir)
+
+	assert.Contains(t, got,
+		"replace "+util.OtelcInstRoot+"/net/http/client => "+instNetHttpDir)
 }
 
 func warnCapture() (*SetupPhase, *bytes.Buffer) {

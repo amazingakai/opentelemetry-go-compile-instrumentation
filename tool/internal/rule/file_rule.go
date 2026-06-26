@@ -51,5 +51,8 @@ func (r *InstFileRule) validate() error {
 	if strings.TrimSpace(r.File) == "" {
 		return ex.Newf("file cannot be empty")
 	}
+	if r.Path != r.ModulePath && !strings.HasPrefix(r.Path, r.ModulePath+"/") {
+		return ex.Newf("import path %q is not part of module path %q", r.Path, r.ModulePath)
+	}
 	return nil
 }
