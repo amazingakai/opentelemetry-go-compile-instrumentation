@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/open-telemetry/opentelemetry-go-compile-instrumentation/tool/internal/rule"
-	"github.com/open-telemetry/opentelemetry-go-compile-instrumentation/tool/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/modfile"
+
+	"github.com/open-telemetry/opentelemetry-go-compile-instrumentation/tool/internal/rule"
+	"github.com/open-telemetry/opentelemetry-go-compile-instrumentation/tool/util"
 )
 
 func TestParseGoMod(t *testing.T) {
@@ -191,7 +192,7 @@ go 1.21
 	err = os.MkdirAll(pkgDir, 0o755)
 	require.NoError(t, err)
 	pkgGoMod := filepath.Join(pkgDir, "go.mod")
-	err = os.WriteFile(pkgGoMod, []byte("module "+util.OtelcRoot+"/pkg\ngo 1.21\n"), 0o644)
+	err = os.WriteFile(pkgGoMod, []byte("module "+util.OtelcPkgRoot+"\ngo 1.21\n"), 0o644)
 	require.NoError(t, err)
 
 	sp := &SetupPhase{
@@ -314,8 +315,9 @@ require (
 			require.NoError(t, sp.warnVersion(gomodPath, before))
 
 			logged := buf.String()
-			assert.Contains(t, logged, "Bumped go version")
-			assert.Contains(t, logged, test.goVersion+" -> 1.25.0")
+			assert.Contains(t, logged, "bumped go version")
+			assert.Contains(t, logged, "old="+test.goVersion)
+			assert.Contains(t, logged, "new=1.25.0")
 		})
 	}
 }
@@ -344,8 +346,10 @@ require (
 	require.NoError(t, sp.warnVersion(gomodPath, before))
 
 	logged := buf.String()
-	assert.Contains(t, logged, "Bumped dependency go.opentelemetry.io/otel")
-	assert.Contains(t, logged, "v1.38.0 -> v1.43.0")
+	assert.Contains(t, logged, "bumped dependency")
+	assert.Contains(t, logged, "module=go.opentelemetry.io/otel")
+	assert.Contains(t, logged, "old=v1.38.0")
+	assert.Contains(t, logged, "new=v1.43.0")
 }
 
 func TestWarnVersion_NoChange(t *testing.T) {
