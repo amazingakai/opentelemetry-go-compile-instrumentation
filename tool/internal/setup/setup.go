@@ -36,14 +36,27 @@ func (sp *SetupPhase) Error(msg string, args ...any) { sp.logger.Error(msg, args
 func (sp *SetupPhase) Warn(msg string, args ...any)  { sp.logger.Warn(msg, args...) }
 func (sp *SetupPhase) Debug(msg string, args ...any) { sp.logger.Debug(msg, args...) }
 
-// keepForDebug copies the file to the build temp directory for debugging
+// keepForDebug copies the file to the build temp directory for debugging.
 // Error is tolerated as it's not critical.
-func (sp *SetupPhase) keepForDebug(srcPath string) {
-	base := filepath.Base(srcPath)
-	dstPath := filepath.Join(util.GetBuildTemp("debug"), "main", base)
-	err := util.CopyFile(srcPath, dstPath)
-	if err != nil {
-		sp.Warn("failed to record added file", "path", srcPath, "error", err)
+func keepForDebug(ctx context.Context, srcPath string) {
+	logger := util.LoggerFromContext(ctx)
+
+	escape := func(s string) string {
+		s = strings.ReplaceAll(s, "/", "_")
+		s = strings.ReplaceAll(s, ".", "_")
+		return s
+	}
+
+	var name string
+	if filepath.Clean(filepath.Dir(srcPath)) == filepath.Clean(util.GetOtelcWorkDir()) {
+		name = "main"
+	} else {
+		name = escape(filepath.Base(filepath.Dir(srcPath)))
+	}
+
+	dstPath := filepath.Join(util.GetBuildTemp("debug"), name, filepath.Base(srcPath))
+	if err := util.CopyFile(srcPath, dstPath); err != nil {
+		logger.WarnContext(ctx, "failed to record added file", "path", srcPath, "error", err)
 	}
 }
 
@@ -320,28 +333,10 @@ func Setup(ctx context.Context, cmd *cli.Command) error {
 	}
 	sp.buildPackages = pkgs
 
-	// Find all dependencies of the project being build
-	deps, err := sp.findDeps(ctx, subcommand, args)
-	if err != nil {
-		return err
-	}
-
-	// Extract the embedded pkg module into local directory
-	err = sp.extract()
-	if err != nil {
-		return ex.Wrapf(err, "extracting embedded instrumentation pkg")
-	}
-
 	// Find the module directories for the build packages
-	moduleDirs, err := pkgload.FindModuleDirs(ctx, pkgs)
-	if err != nil {
-		return ex.Wrapf(err, "finding module dirs")
-	}
-
-	// Match the hook code with these dependencies
-	matched, err := sp.matchDeps(ctx, deps, moduleDirs)
-	if err != nil {
-		return ex.Wrapf(err, "matching dependencies to hook rules")
+	moduleDirs, findModErr := pkgload.FindModuleDirs(ctx, pkgs)
+	if findModErr != nil {
+		return ex.Wrapf(findModErr, "finding module directories for build packages")
 	}
 
 	// Track generated & modified files with state manager
@@ -358,25 +353,33 @@ func Setup(ctx context.Context, cmd *cli.Command) error {
 		}()
 	}
 
+	// Auto-pin generates/updates otel.instrumentation.go file
+	var deps []*Dependency
+	if sp.ruleConfig == "" && os.Getenv(util.EnvOtelcRules) == "" {
+		pinResult, pinErr := AutoPin(ctx, moduleDirs, subcommand, args)
+		if pinErr != nil {
+			return ex.Wrapf(pinErr, "auto-pinning dependencies")
+		}
+		deps = pinResult.AllDeps
+	}
+
+	if deps == nil {
+		// Find all dependencies of the project being build
+		deps, err = findDeps(ctx, subcommand, args)
+		if err != nil {
+			return ex.Wrapf(err, "finding dependencies")
+		}
+	}
+
+	// Match the hook code with these dependencies
+	matched, err := sp.matchDeps(ctx, deps, moduleDirs)
+	if err != nil {
+		return ex.Wrapf(err, "matching dependencies to hook rules")
+	}
+
 	// Generate otelc.runtime.go for all packages
 	if err = sp.generateRuntimePerPackage(ctx, pkgs, matched); err != nil {
 		return err
-	}
-
-	// Backup go.mod, go.sum and go.work.sum files before modifying them
-	backupFiles, err := getBackupFiles(ctx, moduleDirs)
-	if err != nil {
-		return ex.Wrapf(err, "finding files to backup")
-	}
-	if err = stateManager.TrackAll(backupFiles...); err != nil {
-		return ex.Wrapf(err, "tracking backup files")
-	}
-
-	// Sync new dependencies to go.mod or vendor/modules.txt
-	for moduleDir := range moduleDirs {
-		if err = sp.syncDeps(ctx, matched, moduleDir); err != nil {
-			return ex.Wrapf(err, "syncing deps in module dir %s", moduleDir)
-		}
 	}
 
 	// Write the matched ruleset to matched.json for further instrument phase
