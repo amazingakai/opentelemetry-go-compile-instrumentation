@@ -127,8 +127,10 @@ func resolveInstrumentationConfig(ctx context.Context, dir, importPath string) (
 }
 
 type InstrumentationVisit struct {
-	Config *InstrumentationConfig
-	Error  error
+	ImportPath string
+	Config     *InstrumentationConfig
+	ToolFile   string
+	Error      error
 }
 
 type InstrumentationVisitor func(visit *InstrumentationVisit) (recurse bool, err error)
@@ -165,8 +167,10 @@ func walkInstrumentation(ctx context.Context, toolFiles []string, visit Instrume
 
 			cfg, resolveErr := resolveInstrumentationConfig(ctx, filepath.Dir(toolFile), importPath)
 			v := &InstrumentationVisit{
-				Config: cfg,
-				Error:  resolveErr,
+				ImportPath: importPath,
+				Config:     cfg,
+				ToolFile:   toolFile,
+				Error:      resolveErr,
 			}
 
 			recurse, visitErr := visit(v)

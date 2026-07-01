@@ -483,9 +483,6 @@ func TestRuleFilesFromDir(t *testing.T) {
 	t.Setenv(util.EnvOtelcRules, "")
 
 	sp := newTestSetupPhase()
-	err = sp.extract()
-	require.NoError(t, err)
-
 	sp.ruleConfig = dir
 
 	rules, err := sp.loadRules(t.Context(), nil)
@@ -509,9 +506,6 @@ func TestMultipleRuleFiles(t *testing.T) {
 	t.Setenv(util.EnvOtelcRules, "")
 
 	sp := newTestSetupPhase()
-	err := sp.extract()
-	require.NoError(t, err)
-
 	sp.ruleConfig = p1 + "," + p2
 
 	rules, err := sp.loadRules(t.Context(), nil)
@@ -526,9 +520,6 @@ func TestMultipleRuleFiles(t *testing.T) {
 
 	// Check for duplicate rule by name
 	sp = newTestSetupPhase()
-	err = sp.extract()
-	require.NoError(t, err)
-
 	sp.ruleConfig = p1 + "," + p1
 
 	rules, err = sp.loadRules(t.Context(), nil)
@@ -556,7 +547,6 @@ func TestDoSequenceLoadsAllExpandedRules(t *testing.T) {
 	t.Setenv(util.EnvOtelcRules, "")
 
 	sp := newTestSetupPhase()
-	require.NoError(t, sp.extract())
 	sp.ruleConfig = p
 
 	rules, err := sp.loadRules(t.Context(), nil)
@@ -583,7 +573,6 @@ func TestDoSequenceLoadsAllExpandedRules(t *testing.T) {
 	// Re-reading the same file must still dedupe the entry as a unit: the
 	// group is replaced, not appended, so the count stays at 2 (not 4).
 	sp = newTestSetupPhase()
-	require.NoError(t, sp.extract())
 	sp.ruleConfig = p + "," + p
 
 	rules, err = sp.loadRules(t.Context(), nil)
@@ -703,8 +692,6 @@ func TestLoadDefaultRules(t *testing.T) {
 
 	// Prepare setup phase and set custom rules via environment variable and flag
 	sp := newTestSetupPhase()
-	err := sp.extract()
-	require.NoError(t, err)
 	t.Setenv(util.EnvOtelcRules, p1)
 	sp.ruleConfig = p2
 
@@ -726,7 +713,7 @@ func TestLoadDefaultRules(t *testing.T) {
 	require.Equal(t, "h2", rules[0].GetName())
 
 	// Verify that when both custom rule specified by environment variable and flag are empty,
-	// rules are loaded from otel.instrumentation.go/otelc.tool.go file
+	// rules are loaded from otel.instrumentation.go/otelc.tool.go file.
 	t.Setenv(util.EnvOtelcRules, "")
 	sp.ruleConfig = ""
 	rules, err = sp.loadRules(t.Context(), moduleDirs)
@@ -738,9 +725,9 @@ func TestLoadDefaultRules(t *testing.T) {
 	// Verify that the default rules are loaded
 	os.Remove(filepath.Join(tmp, ToolFileCanonical))
 	rules, err = sp.loadRules(t.Context(), moduleDirs)
-	require.NoError(t, err)
-	require.NotEmpty(t, rules)
-	require.Greater(t, len(rules), 1, "default rules should be more than 1")
+	require.Error(t, err)
+	require.Nil(t, rules)
+	require.ErrorContains(t, err, "no rules found from environment variable, rule config, or tool files")
 }
 
 func TestPreciseMatching_WhereFileFilter(t *testing.T) {
@@ -1146,7 +1133,7 @@ func TestMatchDeps_NoMatchesWarning(t *testing.T) {
 		},
 	}
 
-	matched, err := sp.matchDeps(context.Background(), deps, map[string]bool{})
+	matched, err := sp.matchDeps(t.Context(), deps, nil)
 	require.NoError(t, err)
 	assert.Empty(t, matched)
 }

@@ -56,6 +56,16 @@ import (
 )
 ```
 
+The file can be created and maintained automatically using:
+
+```bash
+otelc pin
+```
+
+The `pin` command discovers applicable instrumentations, creates the file if it does not already exist, updates imports, synchronizes dependencies, and runs validation checks.
+
+If no instrumentation file exists, `otelc go build` automatically analyzes the application's dependency graph and generates a temporary instrumentation configuration for the duration of the build. This ensures a zero-configuration workflow while allowing projects to adopt a persistent, source-controlled configuration when desired.
+
 ## How It Works
 
 The tool uses compile-time instrumentation through:
