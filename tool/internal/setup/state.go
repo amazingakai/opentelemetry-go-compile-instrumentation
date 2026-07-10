@@ -194,6 +194,10 @@ func (s *StateManager) Track(path string) error {
 // Track calls Commit automatically; calling it directly is only needed to
 // re-persist after external changes.
 func (s *StateManager) Commit() error {
+	if len(s.files) == 0 {
+		return nil
+	}
+
 	entries := make([]string, 0, len(s.files))
 
 	for path, exists := range s.files {
@@ -227,7 +231,11 @@ func (s *StateManager) Commit() error {
 // Discard removes the persisted manifest and snapshots. Call it only after a
 // successful Revert: the state is consumed, and leaving it behind would let a
 // later `otelc cleanup` re-apply snapshots from a finished build.
-func (*StateManager) Discard() error {
+func (s *StateManager) Discard() error {
+	if len(s.files) == 0 {
+		return nil
+	}
+
 	var err error
 	if rmErr := os.Remove(util.GetBuildTemp(stateFileName)); rmErr != nil && !os.IsNotExist(rmErr) {
 		err = ex.Join(err, rmErr)
@@ -243,6 +251,10 @@ func (*StateManager) Discard() error {
 // Files that originally existed are restored from their snapshots. Files that
 // did not exist when tracked are removed if they exist.
 func (s *StateManager) Revert() error {
+	if len(s.files) == 0 {
+		return nil
+	}
+
 	var err error
 
 	stateDir := util.GetBuildTemp(stateDir)

@@ -34,8 +34,13 @@ func Cleanup(ctx context.Context, cleanAll bool) error {
 		if err := stateManager.Revert(); err != nil {
 			reverted = false
 			logger.WarnContext(ctx, "failed to revert state", "error", err)
-		} else if discardErr := stateManager.Discard(); discardErr != nil {
-			logger.WarnContext(ctx, "failed to discard consumed state", "error", discardErr)
+		}
+
+		// If Revert succeeded, discard the consumed state.
+		if reverted {
+			if discardErr := stateManager.Discard(); discardErr != nil {
+				logger.WarnContext(ctx, "failed to discard consumed state", "error", discardErr)
+			}
 		}
 	}
 

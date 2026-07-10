@@ -365,10 +365,7 @@ func Setup(ctx context.Context, cmd *cli.Command) error {
 		return ex.Wrapf(findModErr, "finding module directories for build packages")
 	}
 
-	// Track generated & modified files with state manager. Track persists the
-	// manifest incrementally before each mutation, so no explicit commit is
-	// needed here, and a build killed at any point leaves a manifest behind
-	// for `otelc cleanup` to restore from.
+	// Ensure a state manager is available in the context
 	stateManager, found := StateManagerFromContext(ctx)
 	if !found {
 		// save this state manager in the context
