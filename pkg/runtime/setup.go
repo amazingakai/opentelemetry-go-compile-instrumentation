@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
@@ -28,10 +29,11 @@ const (
 )
 
 var (
-	logger         *slog.Logger
-	meterProvider  *sdkmetric.MeterProvider
-	tracerProvider *sdktrace.TracerProvider
-	loggerProvider *sdklog.LoggerProvider
+	logger                *slog.Logger
+	meterProvider         *sdkmetric.MeterProvider
+	tracerProvider        *sdktrace.TracerProvider
+	loggerProvider        *sdklog.LoggerProvider
+	registerSignalHandler sync.Once
 )
 
 func init() {
@@ -301,28 +303,31 @@ func StartRuntimeMetrics() {
 // setupSignalHandler registers a goroutine that listens for OS signals
 // and gracefully shuts down the OpenTelemetry SDK when receiving interrupt signals.
 // This ensures telemetry is flushed before the application exits.
+// This function is safe to call multiple times; it will only register the handler once.
 func setupSignalHandler() {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	registerSignalHandler.Do(func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
 
-	go func() {
-		sig := <-sigCh
-		logger.Info("received signal, initiating graceful shutdown", "signal", sig.String())
+		go func() {
+			sig := <-sigCh
+			logger.Info("received signal, initiating graceful shutdown", "signal", sig.String())
 
-		// Create a context with timeout for shutdown
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+			// Create a context with timeout for shutdown
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-		// Shutdown OTel SDK
-		if err := Shutdown(ctx); err != nil {
-			logger.Error("error during shutdown", "error", err)
-		} else {
-			logger.Info("OpenTelemetry SDK shutdown completed successfully")
-		}
+			// Shutdown OTel SDK
+			if err := Shutdown(ctx); err != nil {
+				logger.Error("error during shutdown", "error", err)
+			} else {
+				logger.Info("OpenTelemetry SDK shutdown completed successfully")
+			}
 
-		// After shutdown completes, exit cleanly
-		// os.Interrupt is cross-platform (SIGINT on Unix, Ctrl+C on Windows)
-		signal.Reset(os.Interrupt)
-		os.Exit(0)
-	}()
+			// After shutdown completes, exit cleanly
+			// os.Interrupt is cross-platform (SIGINT on Unix, Ctrl+C on Windows)
+			signal.Reset(os.Interrupt)
+			os.Exit(0)
+		}()
+	})
 }

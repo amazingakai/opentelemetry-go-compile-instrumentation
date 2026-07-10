@@ -134,6 +134,11 @@ func TestSetupOTelSDKDisabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("OTEL_SDK_DISABLED", tt.envValue)
+			// Pin exporters to console so tests are hermetic regardless of the
+			// runner's environment (e.g. OTEL_TRACES_EXPORTER=none).
+			t.Setenv("OTEL_TRACES_EXPORTER", "console")
+			t.Setenv("OTEL_METRICS_EXPORTER", "console")
+			t.Setenv("OTEL_LOGS_EXPORTER", "console")
 			restoreProviders(t)
 			tracerProvider, meterProvider, loggerProvider = nil, nil, nil
 

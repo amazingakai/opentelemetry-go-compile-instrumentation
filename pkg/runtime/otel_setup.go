@@ -27,13 +27,15 @@ import (
 // Exporter Configuration (applies independently to each signal; traces,
 // metrics, and logs are all enabled by default and configured symmetrically):
 //   - OTEL_TRACES_EXPORTER: Traces exporter: otlp (default), console, none
-//   - OTEL_METRICS_EXPORTER: Metrics exporter: otlp (default), console, none
+//   - OTEL_METRICS_EXPORTER: Metrics exporter: otlp (default), console, prometheus, none
 //   - OTEL_LOGS_EXPORTER: Logs exporter: otlp (default), console, none
 //   - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint for all signals (default: http://localhost:4318)
 //   - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: Traces-specific endpoint override
 //   - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: Metrics-specific endpoint override
 //   - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: Logs-specific endpoint override
 //   - OTEL_EXPORTER_OTLP_PROTOCOL: Protocol (grpc, http/protobuf, http/json)
+//   - OTEL_EXPORTER_PROMETHEUS_HOST: Prometheus exporter host (default: localhost)
+//   - OTEL_EXPORTER_PROMETHEUS_PORT: Prometheus exporter port (default: 9464)
 //
 // When the exporter for a signal defaults to "otlp" and no endpoint override
 // is set, telemetry for that signal is sent to the OTLP-spec default endpoint
