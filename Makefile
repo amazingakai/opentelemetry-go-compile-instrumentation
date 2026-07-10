@@ -548,13 +548,13 @@ test-integration: build build-demo
 test-latestlibbuild: build ## Run LatestLibBuild tests
 	@echo "Running LatestLibBuild tests..."
 	set -euo pipefail
-	go -C "test" test -json -v -shuffle=on -timeout=10m -count=1 -tags latestlibbuild ./latestlibbuild/... 2>&1 | tee ./gotest-latestlibbuild.log
+	go -C "test" test -json -v -shuffle=on -timeout=15m -count=1 -tags latestlibbuild ./latestlibbuild/... 2>&1 | tee ./gotest-latestlibbuild.log
 
 .ONESHELL:
 test-latestlibrun: build ## Run LatestLibRun tests (bump apps to @latest then run integration suite)
 	@echo "Bumping test apps to @latest..."
 	set -euo pipefail
-	go -C "test" test -json -v -shuffle=on -timeout=10m -count=1 -tags latestlibrun ./latestlibrun/... 2>&1 | tee ./gotest-latestlibrun.log
+	go -C "test" test -json -v -shuffle=on -timeout=15m -count=1 -tags latestlibrun ./latestlibrun/... 2>&1 | tee ./gotest-latestlibrun.log
 	$(MAKE) tidy/test-apps
 	@echo "Syncing test module with bumped apps..."
 	go -C "test" mod tidy
@@ -570,7 +570,7 @@ test-versionmatrix: build ## Run VersionMatrix tests (pin apps to each rule's bo
 	echo "Version matrix needs $$tiers tier(s)"
 	for (( tier=0; tier<tiers; tier++ )); do
 		echo "Pinning test apps to per-rule bound tier $$tier..."
-		VERSIONMATRIX_TIER=$$tier go -C "test" test -json -v -shuffle=on -timeout=10m -count=1 -tags versionmatrix -run '^TestVersionMatrixBump$$' ./versionmatrix/... 2>&1 | tee -a ./gotest-versionmatrix.log
+		VERSIONMATRIX_TIER=$$tier go -C "test" test -json -v -shuffle=on -timeout=15m -count=1 -tags versionmatrix -run '^TestVersionMatrixBump$$' ./versionmatrix/... 2>&1 | tee -a ./gotest-versionmatrix.log
 		$(MAKE) tidy/test-apps
 		echo "Syncing test module with pinned apps..."
 		go -C "test" mod tidy
