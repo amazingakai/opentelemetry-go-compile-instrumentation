@@ -23,6 +23,8 @@ declare -A dirs=(
     [instrumentation]=instrumentation_temp
 )
 
+status=0
+
 # Verify the archive contains only the expected top-level directories.
 while IFS= read -r -d '' path; do
     name="${path#$tmpdir/}"
@@ -36,8 +38,6 @@ while IFS= read -r -d '' path; do
             ;;
     esac
 done < <(find "$tmpdir" -mindepth 1 -maxdepth 1 -print0)
-
-status=0
 
 check_tree() {
     local root="$1"
@@ -104,7 +104,7 @@ done
 if [[ "$status" -eq 0 ]]; then
     echo "archive verified successfully"
 else
-    echo "archive verification failed"
+    echo 'archive verification failed; run "make package" to rebuild the archive'
 fi
 
 exit "$status"
