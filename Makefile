@@ -173,7 +173,8 @@ package: ## Package the instrumentation code into binary
 	@(cd $(INST_BUNDLE_PKG_TMP) && go mod tidy)
 	@(cd $(INST_BUNDLE_INST_TMP) && go mod tidy)
 	@mkdir -p tool/data/
-	$(BUNDLE) tool/data/$(INST_BUNDLE_ARCHIVE) $(INST_BUNDLE_PKG_TMP) $(INST_BUNDLE_INST_TMP)
+	@$(MAKE) $(BUNDLE)
+	@$(BUNDLE) tool/data/$(INST_BUNDLE_ARCHIVE) $(INST_BUNDLE_PKG_TMP) $(INST_BUNDLE_INST_TMP)
 	@echo "Package created successfully at tool/data/$(INST_BUNDLE_ARCHIVE)"
 
 build-demo: ## Build all demos
