@@ -113,7 +113,7 @@ func TestGenerateDirective(t *testing.T) {
 				Generate: &trueValue,
 			},
 			want: "//go:generate go tool " +
-				util.OtelcOldToolExe +
+				util.OtelcToolExe +
 				" pin --generate",
 		},
 		{
@@ -124,7 +124,7 @@ func TestGenerateDirective(t *testing.T) {
 				Generate: &trueValue,
 			},
 			want: "//go:generate go tool " +
-				util.OtelcOldToolExe +
+				util.OtelcToolExe +
 				" pin --generate --prune=false",
 		},
 		{
@@ -135,7 +135,7 @@ func TestGenerateDirective(t *testing.T) {
 				Generate: &trueValue,
 			},
 			want: "//go:generate go tool " +
-				util.OtelcOldToolExe +
+				util.OtelcToolExe +
 				" pin --generate --validate",
 		},
 		{
@@ -146,7 +146,7 @@ func TestGenerateDirective(t *testing.T) {
 				Generate: &trueValue,
 			},
 			want: "//go:generate go tool " +
-				util.OtelcOldToolExe +
+				util.OtelcToolExe +
 				" pin --generate --prune=false --validate",
 		},
 	} {
@@ -333,7 +333,7 @@ go 1.25
 go 1.25
 
 require %s %s
-`, util.OtelcOldRoot, testVersion),
+`, util.OtelcRoot, testVersion),
 			wantModified: true,
 			wantVersion:  testVersion,
 		},
@@ -346,7 +346,7 @@ go 1.25
 tool %s
 
 require %s %s
-`, util.OtelcOldToolCmdRoot, util.OtelcOldRoot, testVersion),
+`, util.OtelcToolCmdRoot, util.OtelcRoot, testVersion),
 			wantModified: false,
 			wantVersion:  testVersion,
 		},
@@ -359,7 +359,7 @@ go 1.25
 tool %s
 
 require %s v1.99.0
-`, util.OtelcOldToolCmdRoot, util.OtelcOldRoot),
+`, util.OtelcToolCmdRoot, util.OtelcRoot),
 			wantModified: false,
 			wantVersion:  "v1.99.0",
 		},
@@ -372,7 +372,7 @@ go 1.25
 tool %s
 
 require %s v1.0.0
-`, util.OtelcOldToolCmdRoot, util.OtelcOldRoot),
+`, util.OtelcToolCmdRoot, util.OtelcRoot),
 			wantModified: true,
 			wantVersion:  testVersion,
 		},
@@ -409,7 +409,7 @@ require %s v1.0.0
 
 			var foundTool bool
 			for _, tool := range f.Tool {
-				if tool.Path != util.OtelcOldToolCmdRoot {
+				if tool.Path != util.OtelcToolCmdRoot {
 					continue
 				}
 
@@ -419,7 +419,7 @@ require %s v1.0.0
 
 			var foundRequire bool
 			for _, req := range f.Require {
-				if req.Mod.Path != util.OtelcOldRoot {
+				if req.Mod.Path != util.OtelcRoot {
 					continue
 				}
 
@@ -673,8 +673,8 @@ go 1.25
 	goMod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	require.NoError(t, err)
 
-	require.Contains(t, string(goMod), util.OtelcOldRoot)
-	require.Contains(t, string(goMod), util.OtelcOldToolCmdRoot)
+	require.Contains(t, string(goMod), util.OtelcRoot)
+	require.Contains(t, string(goMod), util.OtelcToolCmdRoot)
 }
 
 func TestUpdateToolFile_ParseError(t *testing.T) {
@@ -875,6 +875,6 @@ func main() {
 	require.NoError(t, err)
 
 	// Verify tool is pinned in go.mod
-	require.Contains(t, string(goMod), util.OtelcOldToolCmdRoot)
-	require.Contains(t, string(goMod), util.OtelcOldRoot)
+	require.Contains(t, string(goMod), util.OtelcToolCmdRoot)
+	require.Contains(t, string(goMod), util.OtelcRoot)
 }

@@ -155,10 +155,10 @@ func TestPin_GeneratesNewToolFile(t *testing.T) {
 	require.NoError(t, goModErr)
 
 	// Ensure otelc tool directive is within the go.mod file.
-	require.Contains(t, string(goMod), util.OtelcOldToolCmdRoot)
+	require.Contains(t, string(goMod), util.OtelcToolCmdRoot)
 
 	// Ensure otelc require is within the go.mod file.
-	require.Contains(t, string(goMod), util.OtelcOldRoot)
+	require.Contains(t, string(goMod), util.OtelcRoot)
 
 	// Ensure the http integration is within the go.mod file, which ensures it is pinned as a dependency.
 	require.Contains(t, string(goMod), util.OtelcInstRoot+"/net/http/client")
